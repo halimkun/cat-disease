@@ -1,0 +1,62 @@
+<?php
+
+use Rubix\ML\Classifiers\KNearestNeighbors;
+use Rubix\ML\CrossValidation\Metrics\Accuracy;
+use Rubix\ML\Datasets\Labeled;
+use Rubix\ML\Datasets\Unlabeled;
+use Rubix\ML\Extractors\CSV;
+use Rubix\ML\Kernels\Distance\Euclidean;
+use Rubix\ML\Transformers\LambdaFunction;
+
+require_once('./../vendor/autoload.php');
+require_once('./fungsi.php');
+
+// ========== ========== ========== ========== //
+
+$del = new Fungsi;
+$knn = new KNearestNeighbors(3, false, new Euclidean());
+
+// ========== ========== ========== ========== //
+
+$file   = "./../data/data.csv";
+$del    = $del->generateDelimiter($file, 5);
+$header = true;
+
+// ========== ========== ========== ========== //
+
+$dataset = Labeled::fromIterator(new CSV($file, $header, $del));
+
+$binarize = function (&$sample) {
+    for ($i=0; $i < count($sample); $i++) { 
+        $sample[$i] = $sample[$i] == "Yes" ? 1 : 0;
+    }
+};
+
+$dataset->apply(new LambdaFunction($binarize));
+
+$knn->train($dataset);
+
+// ========== ========== ========== ========== //
+
+$test_data = [
+    ["No", "No", "No", "No", "Yes", "No", "No", "Yes", "No", "Yes", "No", "No", "No", "No", "No", "Yes"]
+];
+
+$test_data = new Unlabeled($test_data);
+
+$binarize = function (&$sample) {
+    for ($i=0; $i < count($sample); $i++) { 
+        $sample[$i] = $sample[$i] == "Yes" ? 1 : 0;
+    }
+};
+$test_data->apply(new LambdaFunction($binarize));
+
+$penyakit = $knn->predict($test_data);
+
+$newdata = new Labeled($test_data->samples(), $penyakit);
+
+$accuracy = new Accuracy();
+$score = $accuracy->score($penyakit, $newdata->samples());
+
+// echo "Penyakitnya : $penyakit[0]";
+// echo "Akurasi : $score";
